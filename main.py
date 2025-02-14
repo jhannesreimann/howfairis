@@ -1,7 +1,8 @@
 # api.py
 import os
 import logging
-from typing import Dict, List, Optional
+import requests
+from typing import Dict, List, Optional, Any
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from howfairis import Repo, Checker
