@@ -11,12 +11,26 @@ from howfairis import Repo, Checker
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Check if API keys are configured
-github_key = os.getenv('APIKEY_GITHUB', '')
-if github_key:
+# Set environment variables for API keys
+github_token = os.getenv('GITHUB_TOKEN', '')
+github_user = os.getenv('GITHUB_USER', '')
+
+if github_token and github_user:
+    # Format: <user>:<token>
+    os.environ['APIKEY_GITHUB'] = f"{github_user}:{github_token}"
     logger.info("GitHub credentials configured")
 else:
-    logger.warning("GitHub credentials not configured. Using anonymous access.")
+    logger.warning("GitHub credentials not fully configured. Using anonymous access.")
+
+gitlab_token = os.getenv('GITLAB_TOKEN', '')
+gitlab_user = os.getenv('GITLAB_USER', '')
+
+if gitlab_token and gitlab_user:
+    # Format: <user>:<token>
+    os.environ['APIKEY_GITLAB'] = f"{gitlab_user}:{gitlab_token}"
+    logger.info("GitLab credentials configured")
+else:
+    logger.warning("GitLab credentials not fully configured. Using anonymous access.")
 
 app = FastAPI(
     title="HowFAIRis API",
