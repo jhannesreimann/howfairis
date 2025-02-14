@@ -1,6 +1,7 @@
 # api.py
 import os
 import logging
+import re
 from typing import Dict, List, Optional
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -10,26 +11,12 @@ from howfairis import Repo, Checker
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Set environment variables for API keys
-github_token = os.getenv('GITHUB_TOKEN', '')
-github_user = os.getenv('GITHUB_USER', '')
-
-if github_token and github_user:
-    # Format: <user>:<token>
-    os.environ['APIKEY_GITHUB'] = f"{github_user}:{github_token}"
+# Check if API keys are configured
+github_key = os.getenv('APIKEY_GITHUB', '')
+if github_key:
     logger.info("GitHub credentials configured")
 else:
-    logger.warning("GitHub credentials not fully configured. Using anonymous access.")
-
-gitlab_token = os.getenv('GITLAB_TOKEN', '')
-gitlab_user = os.getenv('GITLAB_USER', '')
-
-if gitlab_token and gitlab_user:
-    # Format: <user>:<token>
-    os.environ['APIKEY_GITLAB'] = f"{gitlab_user}:{gitlab_token}"
-    logger.info("GitLab credentials configured")
-else:
-    logger.warning("GitLab credentials not fully configured. Using anonymous access.")
+    logger.warning("GitHub credentials not configured. Using anonymous access.")
 
 app = FastAPI(
     title="HowFAIRis API",
@@ -79,6 +66,13 @@ class ComplianceResponse(BaseModel):
     
     # Repository metadata
     metadata: RepositoryMetadata
+
+def extract_repo_name(url: str) -> str:
+    """Extract repository name from GitHub/GitLab URL."""
+    # Remove trailing slash if present
+    url = url.rstrip('/')
+    # Extract the last part of the URL
+    return url.split('/')[-1]
 
 @app.post("/check", response_model=ComplianceResponse)
 async def check_repository(request: RepositoryRequest):
@@ -141,7 +135,7 @@ async def check_repository(request: RepositoryRequest):
         try:
             repo_api_data = repo.repository_data
             metadata = RepositoryMetadata(
-                name=repo_api_data.get("name", ""),
+                name=repo_api_data.get("name", extract_repo_name(request.url)),
                 description=repo_api_data.get("description"),
                 created_at=repo_api_data.get("created_at"),
                 updated_at=repo_api_data.get("updated_at"),
@@ -152,7 +146,17 @@ async def check_repository(request: RepositoryRequest):
             )
         except Exception as e:
             logger.warning(f"Could not fetch repository metadata: {str(e)}")
-            metadata = RepositoryMetadata(name=repo.name)
+            # Fallback to basic metadata
+            metadata = RepositoryMetadata(
+                name=extract_repo_name(request.url),
+                description=None,
+                created_at=None,
+                updated_at=None,
+                language=None,
+                license_name=None,
+                stars=None,
+                forks=None
+            )
         
         return {
             # Basic results
