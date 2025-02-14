@@ -1,11 +1,11 @@
 # api.py
 import os
 import logging
-import re
 from typing import Dict, List, Optional
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from howfairis import Repo, Checker
+from howfairis.requesting.get_from_github import get_from_github
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -81,12 +81,29 @@ class ComplianceResponse(BaseModel):
     # Repository metadata
     metadata: RepositoryMetadata
 
-def extract_repo_name(url: str) -> str:
-    """Extract repository name from GitHub/GitLab URL."""
-    # Remove trailing slash if present
-    url = url.rstrip('/')
-    # Extract the last part of the URL
-    return url.split('/')[-1]
+def get_repository_metadata(repo: Repo) -> RepositoryMetadata:
+    """Get repository metadata using the repository's API endpoint."""
+    try:
+        # Get repository data using howfairis's API request mechanism
+        response = get_from_github(repo.api, "api", repo._apikeys)
+        
+        if response.status_code == 200:
+            data = response.json()
+            return RepositoryMetadata(
+                name=data.get("name", repo.repo),
+                description=data.get("description"),
+                created_at=data.get("created_at"),
+                updated_at=data.get("updated_at"),
+                language=data.get("language"),
+                license_name=data.get("license", {}).get("name") if data.get("license") else None,
+                stars=data.get("stargazers_count"),
+                forks=data.get("forks_count")
+            )
+    except Exception as e:
+        logger.warning(f"Could not fetch repository metadata: {str(e)}")
+    
+    # Fallback to basic metadata
+    return RepositoryMetadata(name=repo.repo)
 
 @app.post("/check", response_model=ComplianceResponse)
 async def check_repository(request: RepositoryRequest):
@@ -146,31 +163,7 @@ async def check_repository(request: RepositoryRequest):
             )
         
         # Get repository metadata
-        try:
-            repo_api_data = repo.repository_data
-            metadata = RepositoryMetadata(
-                name=repo_api_data.get("name", extract_repo_name(request.url)),
-                description=repo_api_data.get("description"),
-                created_at=repo_api_data.get("created_at"),
-                updated_at=repo_api_data.get("updated_at"),
-                language=repo_api_data.get("language"),
-                license_name=repo_api_data.get("license", {}).get("name") if repo_api_data.get("license") else None,
-                stars=repo_api_data.get("stargazers_count"),
-                forks=repo_api_data.get("forks_count")
-            )
-        except Exception as e:
-            logger.warning(f"Could not fetch repository metadata: {str(e)}")
-            # Fallback to basic metadata
-            metadata = RepositoryMetadata(
-                name=extract_repo_name(request.url),
-                description=None,
-                created_at=None,
-                updated_at=None,
-                language=None,
-                license_name=None,
-                stars=None,
-                forks=None
-            )
+        metadata = get_repository_metadata(repo)
         
         return {
             # Basic results
