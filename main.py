@@ -28,13 +28,22 @@ async def check_repository(request: RepositoryRequest):
         repo = Repo(request.url, branch=request.branch)
         compliance = Compliance(repo)
         
+        # Calculate score manually by counting True values
+        score = sum([
+            compliance.repository,
+            compliance.license,
+            compliance.registry,
+            compliance.citation,
+            compliance.checklist
+        ])
+        
         return {
             "repository": compliance.repository,
             "license": compliance.license,
             "registry": compliance.registry,
             "citation": compliance.citation,
             "checklist": compliance.checklist,
-            "score": compliance.get_compliance_score(),
+            "score": score,
             "url": request.url
         }
     except Exception as e:
