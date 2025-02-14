@@ -1,7 +1,7 @@
 # api.py
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from howfairis import Repo, Compliance
+from howfairis import Repo, Checker
 
 app = FastAPI(
     title="HowFAIRis API",
@@ -25,8 +25,14 @@ class ComplianceResponse(BaseModel):
 @app.post("/check", response_model=ComplianceResponse)
 async def check_repository(request: RepositoryRequest):
     try:
+        # Create a Repo instance
         repo = Repo(request.url, branch=request.branch)
-        compliance = Compliance(repo)
+        
+        # Create a Checker instance
+        checker = Checker(repo, is_quiet=True)
+        
+        # Get compliance results
+        compliance = checker.check_five_recommendations()
         
         # Calculate score manually by counting True values
         score = sum([
