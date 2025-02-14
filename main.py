@@ -1,7 +1,12 @@
 # api.py
+import os
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from howfairis import Repo, Checker
+
+# Set environment variables for API keys
+os.environ['GITHUB_TOKEN'] = os.getenv('GITHUB_TOKEN', '')  # GitHub Personal Access Token
+os.environ['GITLAB_TOKEN'] = os.getenv('GITLAB_TOKEN', '')  # GitLab Personal Access Token
 
 app = FastAPI(
     title="HowFAIRis API",
