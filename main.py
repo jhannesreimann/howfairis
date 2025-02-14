@@ -105,6 +105,10 @@ def get_repository_metadata(repo: Repo) -> RepositoryMetadata:
     # Fallback to basic metadata
     return RepositoryMetadata(name=repo.repo)
 
+def filter_none(lst: List[Any]) -> List[Any]:
+    """Remove None values from a list."""
+    return [item for item in lst if item is not None]
+
 @app.post("/check", response_model=ComplianceResponse)
 async def check_repository(request: RepositoryRequest):
     try:
@@ -159,7 +163,7 @@ async def check_repository(request: RepositoryRequest):
                     passed=passed_checks,
                     failed=failed_checks
                 ),
-                recommendations=recommendations
+                recommendations=filter_none(recommendations)
             )
         
         # Get repository metadata
@@ -184,26 +188,33 @@ async def check_repository(request: RepositoryRequest):
             # Detailed results with recommendations
             "repository_details": create_category_results(
                 repository_checks,
-                ["Make the repository public"] if not compliance.repository else []
+                ["Make the repository public"] if not checker.has_open_repository() else []
             ),
             "license_details": create_category_results(
                 license_checks,
-                ["Add a LICENSE file"] if not compliance.license else []
+                ["Add a LICENSE file"] if not checker.has_license() else []
             ),
             "registry_details": create_category_results(
                 registry_checks,
-                ["Add package to PyPI and include a PyPI badge",
-                 "Consider adding the package to conda-forge",
-                 "List the package on GitHub Marketplace"] if not compliance.registry else []
+                [
+                    "Add package to PyPI and include a PyPI badge" if not checker.has_pypi_badge() else None,
+                    "Add package to conda-forge and include a conda badge" if not checker.has_conda_badge() else None,
+                    "List the package on GitHub Marketplace" if not checker.is_on_github_marketplace() else None
+                ] + (["Consider removing Bintray badge as Bintray is deprecated"] if checker.has_bintray_badge() else [])
             ),
             "citation_details": create_category_results(
                 citation_checks,
-                ["Add a CITATION.cff file",
-                 "Add Zenodo integration and badge"] if not compliance.citation else []
+                [
+                    "Add a CITATION.cff file for software citation" if not checker.has_citationcff_file() else None,
+                    "Add a CITATION file" if not checker.has_citation_file() else None,
+                    "Add a codemeta.json file" if not checker.has_codemeta_file() else None,
+                    "Add Zenodo integration and badge" if not checker.has_zenodo_badge() else None,
+                    "Add .zenodo.json metadata file" if not checker.has_zenodo_metadata_file() else None
+                ]
             ),
             "checklist_details": create_category_results(
                 checklist_checks,
-                ["Add a Core Infrastructure Badge"] if not compliance.checklist else []
+                ["Add a Core Infrastructure Badge"] if not checker.has_core_infrastructures_badge() else []
             ),
             
             # Repository metadata
