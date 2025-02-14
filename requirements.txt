@@ -1,6 +1,6 @@
 fastapi>=0.68.0,<0.69.0
 uvicorn>=0.15.0,<0.16.0
-howfairis>=1.0.0
+howfairis==0.14.2
 pydantic>=1.8.0,<2.0.0
 requests>=2.31.0
 python-multipart>=0.0.6
